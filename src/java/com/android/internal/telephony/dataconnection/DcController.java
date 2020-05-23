@@ -282,8 +282,7 @@ public class DcController extends StateMachine {
             // dcsList to the list of DC's to retry
             ArrayList<DataConnection> dcsToRetry = new ArrayList<DataConnection>();
             for (DataConnection dc : dcListActiveByCid.values()) {
-                if (dataCallResponseListByCid.get(dc.mCid) == null
-                        && !dc.isBeingInTransferring()) {
+                if (dataCallResponseListByCid.get(dc.mCid) == null) {
                     if (DBG) log("onDataStateChanged: add to retry dc=" + dc);
                     dcsToRetry.add(dc);
                 }

@@ -246,7 +246,7 @@ public class TelephonyComponentFactory {
      */
     public void injectTheComponentFactory(XmlResourceParser parser) {
         if (mInjectedComponents != null) {
-            Rlog.i(TAG, "Already injected.");
+            Rlog.d(TAG, "Already injected.");
             return;
         }
 
@@ -485,10 +485,5 @@ public class TelephonyComponentFactory {
     public void makeExtTelephonyClasses(Context context,
             Phone[] phones, CommandsInterface[] commandsInterfaces) {
         Rlog.d(LOG_TAG, "makeExtTelephonyClasses");
-    }
-
-    public CarrierInfoManager makeCarrierInfoManager(Phone phone) {
-        Rlog.i(TAG, " makeCarrierInfoManager ");
-        return new CarrierInfoManager();
     }
 }

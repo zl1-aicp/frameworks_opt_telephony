@@ -205,10 +205,10 @@ public class IccProvider extends ContentProvider {
                         "Cannot insert into URL: " + url);
         }
 
-        String tag = initialValues.getAsString("tag");
-        String number = initialValues.getAsString("number");
-        String emails = initialValues.getAsString("emails");
-        String anrs = initialValues.getAsString("anrs");
+        String tag = initialValues.getAsString(STR_TAG);
+        String number = initialValues.getAsString(STR_NUMBER);
+        String emails = initialValues.getAsString(STR_EMAILS);
+        String anrs = initialValues.getAsString(STR_ANRS);
 
         ContentValues values = new ContentValues();
         values.put(STR_TAG,"");
@@ -346,14 +346,14 @@ public class IccProvider extends ContentProvider {
         }
 
         ContentValues values = new ContentValues();
-        values.put(STR_TAG,tag);
-        values.put(STR_NUMBER,number);
-        values.put(STR_EMAILS,emails);
-        values.put(STR_ANRS,anrs);
-        values.put(STR_NEW_TAG,"");
-        values.put(STR_NEW_NUMBER,"");
-        values.put(STR_NEW_EMAILS,"");
-        values.put(STR_NEW_ANRS,"");
+        values.put(STR_TAG, tag);
+        values.put(STR_NUMBER, number);
+        values.put(STR_EMAILS, emails);
+        values.put(STR_ANRS, anrs);
+        values.put(STR_NEW_TAG, "");
+        values.put(STR_NEW_NUMBER, "");
+        values.put(STR_NEW_EMAILS, "");
+        values.put(STR_NEW_ANRS, "");
         if ((efType == FDN) && TextUtils.isEmpty(pin2)) {
             return 0;
         }
@@ -405,13 +405,6 @@ public class IccProvider extends ContentProvider {
                         "Cannot insert into URL: " + url);
         }
 
-        String tag = values.getAsString("tag");
-        String number = values.getAsString("number");
-        String[] emails = null;
-        String newTag = values.getAsString("newTag");
-        String newNumber = values.getAsString("newNumber");
-        String[] newEmails = null;
-        // TODO(): Update for email.
         boolean success = updateIccRecordInEf(efType, values, pin2, subId);
 
         if (!success) {
@@ -443,7 +436,7 @@ public class IccProvider extends ContentProvider {
             // Load the results
             final int N = adnRecords.size();
             final MatrixCursor cursor = new MatrixCursor(ADDRESS_BOOK_COLUMN_NAMES, N);
-            log("adnRecords.size=" + N);
+            if (DBG) log("adnRecords.size=" + N);
             for (int i = 0; i < N ; i++) {
                 loadRecord(adnRecords.get(i), cursor, i);
             }
@@ -508,6 +501,7 @@ public class IccProvider extends ContentProvider {
         return success;
     }
 
+
     private boolean deleteIccRecordFromEf(int efType, String name, String number, String[] emails,
             String pin2, int subId) {
         if (DBG) log("deleteIccRecordFromEf: efType=0x" +
@@ -545,7 +539,7 @@ public class IccProvider extends ContentProvider {
             Object[] contact = new Object[5];
             String alphaTag = record.getAlphaTag();
             String number = record.getNumber();
-            String[] anrs = record.getAdditionalNumbers();
+
             if (DBG) log("loadRecord: " + alphaTag + ", " + Rlog.pii(TAG, number));
             contact[0] = alphaTag;
             contact[1] = number;
@@ -561,6 +555,7 @@ public class IccProvider extends ContentProvider {
                 contact[2] = emailString.toString();
             }
 
+            String[] anrs = record.getAdditionalNumbers();
             if (anrs != null) {
                 StringBuilder anrString = new StringBuilder();
                 for (String anr : anrs) {

@@ -31,7 +31,6 @@ import android.os.Message;
 import android.os.Registrant;
 import android.os.RegistrantList;
 import android.os.storage.StorageManager;
-import android.os.SystemProperties;
 import android.preference.PreferenceManager;
 import android.telephony.CarrierConfigManager;
 import android.telephony.Rlog;
@@ -160,7 +159,6 @@ public class UiccController extends Handler {
     // SharedPreferences key for saving the default euicc card ID
     private static final String DEFAULT_CARD = "default_card";
 
-    static final String PROPERTY_PHYSICAL_SIM_SLOT_COUNT = "persist.radio.physical.slot.count";
     @UnsupportedAppUsage
     private static final Object mLock = new Object();
     @UnsupportedAppUsage
@@ -201,8 +199,6 @@ public class UiccController extends Handler {
         }
         int numPhysicalSlots = c.getResources().getInteger(
                 com.android.internal.R.integer.config_num_physical_slots);
-        numPhysicalSlots = SystemProperties.getInt(
-                PROPERTY_PHYSICAL_SIM_SLOT_COUNT, numPhysicalSlots);
         // Minimum number of physical slot count should be equals to or greater than phone count,
         // if it is less than phone count use phone count as physical slot count.
         if (numPhysicalSlots < mCis.length) {
@@ -218,7 +214,16 @@ public class UiccController extends Handler {
         for (int i = 0; i < mCis.length; i++) {
             mCis[i].registerForIccStatusChanged(this, EVENT_ICC_STATUS_CHANGED, i);
 
-            mCis[i].registerForAvailable(this, EVENT_RADIO_AVAILABLE, i);
+            // TODO remove this once modem correctly notifies the unsols
+            // If the device is unencrypted or has been decrypted or FBE is supported,
+            // i.e. not in CryptKeeper bounce, read SIM when radio state is available.
+            // Else wait for radio to be on. This is needed for the scenario when SIM is locked --
+            // to avoid overlap of CryptKeeper and SIM unlock screen.
+            if (!StorageManager.inCryptKeeperBounce()) {
+                mCis[i].registerForAvailable(this, EVENT_RADIO_AVAILABLE, i);
+            } else {
+                mCis[i].registerForOn(this, EVENT_RADIO_ON, i);
+            }
             mCis[i].registerForNotAvailable(this, EVENT_RADIO_UNAVAILABLE, i);
             mCis[i].registerForIccRefresh(this, EVENT_SIM_REFRESH, i);
         }

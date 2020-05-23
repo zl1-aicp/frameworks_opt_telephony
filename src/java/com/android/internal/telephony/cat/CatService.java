@@ -543,7 +543,6 @@ public class CatService extends Handler implements AppInterface {
 
     private void broadcastCatCmdIntent(CatCmdMessage cmdMsg) {
         Intent intent = new Intent(AppInterface.CAT_CMD_ACTION);
-        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         intent.putExtra("STK CMD", cmdMsg);
         intent.putExtra("SLOT_ID", mSlotId);
         intent.setComponent(AppInterface.getDefaultSTKApplication());
@@ -562,7 +561,6 @@ public class CatService extends Handler implements AppInterface {
         Intent intent = new Intent(AppInterface.CAT_SESSION_END_ACTION);
         intent.putExtra("SLOT_ID", mSlotId);
         intent.setComponent(AppInterface.getDefaultSTKApplication());
-        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         mContext.sendBroadcast(intent, AppInterface.STK_PERMISSION);
     }
 
@@ -908,15 +906,13 @@ public class CatService extends Handler implements AppInterface {
     private void  broadcastCardStateAndIccRefreshResp(CardState cardState,
             IccRefreshResponse iccRefreshState) {
         Intent intent = new Intent(AppInterface.CAT_ICC_STATUS_CHANGE);
-        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
         boolean cardPresent = (cardState == CardState.CARDSTATE_PRESENT);
 
         if (iccRefreshState != null) {
             //This case is when MSG_ID_ICC_REFRESH is received.
             intent.putExtra(AppInterface.REFRESH_RESULT, iccRefreshState.refreshResult);
-            intent.putExtra(AppInterface.AID, iccRefreshState.aid);
             CatLog.d(this, "Sending IccResult with Result: "
-                    + iccRefreshState.refreshResult + " " + "aid: " + iccRefreshState.aid);
+                    + iccRefreshState.refreshResult);
         }
 
         // This sends an intent with CARD_ABSENT (0 - false) /CARD_PRESENT (1 - true).

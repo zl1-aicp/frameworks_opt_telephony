@@ -159,7 +159,7 @@ public class UiccCardApplication {
             }
 
             if (mPersoSubState != oldPersoSubState &&
-                    isPersoLocked()) {
+                    mPersoSubState == PersoSubState.PERSOSUBSTATE_SIM_NETWORK) {
                 notifyNetworkLockedRegistrantsIfNeeded(null);
             }
 
@@ -541,14 +541,13 @@ public class UiccCardApplication {
         }
 
         if (mAppState == AppState.APPSTATE_SUBSCRIPTION_PERSO &&
-                isPersoLocked()) {
-            AsyncResult ar = new AsyncResult(null, mPersoSubState.ordinal(), null);
+                mPersoSubState == PersoSubState.PERSOSUBSTATE_SIM_NETWORK) {
             if (r == null) {
                 if (DBG) log("Notifying registrants: NETWORK_LOCKED");
-                mNetworkLockedRegistrants.notifyRegistrants(ar);
+                mNetworkLockedRegistrants.notifyRegistrants();
             } else {
                 if (DBG) log("Notifying 1 registrant: NETWORK_LOCED");
-                r.notifyRegistrant(ar);
+                r.notifyRegistrant(new AsyncResult(null, null, null));
             }
         }
     }
@@ -640,17 +639,6 @@ public class UiccCardApplication {
     public IccRecords getIccRecords() {
         synchronized (mLock) {
             return mIccRecords;
-        }
-    }
-
-    public boolean isPersoLocked() {
-        switch (mPersoSubState) {
-            case PERSOSUBSTATE_UNKNOWN:
-            case PERSOSUBSTATE_IN_PROGRESS:
-            case PERSOSUBSTATE_READY:
-                return false;
-            default:
-                return true;
         }
     }
 

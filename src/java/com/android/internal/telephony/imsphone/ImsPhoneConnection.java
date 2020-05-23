@@ -46,7 +46,6 @@ import com.android.internal.telephony.CallStateException;
 import com.android.internal.telephony.Connection;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.TelephonyProperties;
 import com.android.internal.telephony.UUSInfo;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 
@@ -223,24 +222,9 @@ public class ImsPhoneConnection extends Connection implements
     /** This is an MO call, created when dialing */
     public ImsPhoneConnection(Phone phone, String dialString, ImsPhoneCallTracker ct,
             ImsPhoneCall parent, boolean isEmergency) {
-        this(phone, dialString, ct, parent, isEmergency, null);
-    }
-
-    /** This is an MO call, created when dialing */
-    public ImsPhoneConnection(Phone phone, String dialString, ImsPhoneCallTracker ct,
-            ImsPhoneCall parent, boolean isEmergency, Bundle extras) {
         super(PhoneConstants.PHONE_TYPE_IMS);
         createWakeLock(phone.getContext());
         acquireWakeLock();
-        boolean isConferenceUri = false;
-        boolean isSkipSchemaParsing = false;
-
-        if (extras != null) {
-            isConferenceUri = extras.getBoolean(
-                    TelephonyProperties.EXTRA_DIAL_CONFERENCE_URI, false);
-            isSkipSchemaParsing = extras.getBoolean(
-                    TelephonyProperties.EXTRA_SKIP_SCHEMA_PARSING, false);
-        }
 
         mOwner = ct;
         mHandler = new MyHandler(mOwner.getLooper());
@@ -248,13 +232,8 @@ public class ImsPhoneConnection extends Connection implements
 
         mDialString = dialString;
 
-        if (isConferenceUri || isSkipSchemaParsing) {
-            mAddress = dialString;
-            mPostDialString = "";
-        } else {
-            mAddress = PhoneNumberUtils.extractNetworkPortionAlt(dialString);
-            mPostDialString = PhoneNumberUtils.extractPostDialPortion(dialString);
-        }
+        mAddress = PhoneNumberUtils.extractNetworkPortionAlt(dialString);
+        mPostDialString = PhoneNumberUtils.extractPostDialPortion(dialString);
 
         //mIndex = -1;
 
@@ -309,10 +288,6 @@ public class ImsPhoneConnection extends Connection implements
                 capabilities = addCapability(capabilities,
                         Connection.Capability.SUPPORTS_VT_LOCAL_BIDIRECTIONAL);
                 break;
-            case ImsCallProfile.CALL_TYPE_VT_NODIR:
-                capabilities = removeCapability(capabilities,
-                        Connection.Capability.SUPPORTS_DOWNGRADE_TO_VOICE_LOCAL);
-                break;
         }
         return capabilities;
     }
@@ -329,14 +304,6 @@ public class ImsPhoneConnection extends Connection implements
                 capabilities = addCapability(capabilities,
                         Connection.Capability.SUPPORTS_VT_REMOTE_BIDIRECTIONAL);
                 break;
-            case ImsCallProfile.CALL_TYPE_VT_NODIR:
-                capabilities = removeCapability(capabilities,
-                        Connection.Capability.SUPPORTS_DOWNGRADE_TO_VOICE_REMOTE);
-                break;
-        }
-
-        if (remoteProfile.getMediaProfile().getRttMode() == ImsStreamMediaProfile.RTT_MODE_FULL) {
-            capabilities = addCapability(capabilities, Connection.Capability.SUPPORTS_RTT_REMOTE);
         }
         return capabilities;
     }

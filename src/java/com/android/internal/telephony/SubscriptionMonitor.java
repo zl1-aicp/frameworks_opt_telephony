@@ -69,6 +69,12 @@ public class SubscriptionMonitor {
 
     public SubscriptionMonitor(ITelephonyRegistry tr, Context context,
             SubscriptionController subscriptionController, int numPhones) {
+        try {
+            tr.addOnSubscriptionsChangedListener(context.getOpPackageName(),
+                    mSubscriptionsChangedListener);
+        } catch (RemoteException e) {
+        }
+
         mSubscriptionController = subscriptionController;
         mContext = context;
 
@@ -83,11 +89,6 @@ public class SubscriptionMonitor {
             mSubscriptionsChangedRegistrants[phoneId] = new RegistrantList();
             mDefaultDataSubChangedRegistrants[phoneId] = new RegistrantList();
             mPhoneSubId[phoneId] = mSubscriptionController.getSubIdUsingPhoneId(phoneId);
-        }
-        try {
-            tr.addOnSubscriptionsChangedListener(context.getOpPackageName(),
-                    mSubscriptionsChangedListener);
-        } catch (RemoteException e) {
         }
 
         mContext.registerReceiver(mDefaultDataSubscriptionChangedReceiver,

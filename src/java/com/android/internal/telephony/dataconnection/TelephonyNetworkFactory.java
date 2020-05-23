@@ -29,12 +29,10 @@ import android.os.Looper;
 import android.os.Message;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.Rlog;
-import android.telephony.TelephonyManager;
 import android.telephony.data.ApnSetting;
 import android.telephony.data.ApnSetting.ApnType;
 import android.util.LocalLog;
 
-import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneSwitcher;
 import com.android.internal.telephony.SubscriptionController;
@@ -87,9 +85,6 @@ public class TelephonyNetworkFactory extends NetworkFactory {
 
     private final Handler mInternalHandler;
 
-
-    private static final int PRIMARY_SLOT = 0;
-    private static final int SECONDARY_SLOT = 1;
 
     public TelephonyNetworkFactory(SubscriptionMonitor subscriptionMonitor, Looper looper,
                                    Phone phone, PhoneSwitcher phoneSwitcher) {
@@ -281,21 +276,8 @@ public class TelephonyNetworkFactory extends NetworkFactory {
         msg.sendToTarget();
     }
 
-    private boolean isNetworkCapabilityEims(NetworkRequest networkRequest) {
-        return networkRequest.networkCapabilities.hasCapability(
-            android.net.NetworkCapabilities.NET_CAPABILITY_EIMS);
-    }
-
-    private boolean isSimPresentInSecondarySlot() {
-        return TelephonyManager.getDefault().hasIccCard(SECONDARY_SLOT);
-    }
-
     private void onNeedNetworkFor(Message msg) {
         NetworkRequest networkRequest = (NetworkRequest) msg.obj;
-        if (networkRequest.type != NetworkRequest.Type.REQUEST) {
-           logl("Skip non REQUEST type request: " + networkRequest);
-           return;
-        }
         boolean shouldApply = mPhoneSwitcher.shouldApplyNetworkRequest(
                 networkRequest, mPhone.getPhoneId());
 
@@ -320,9 +302,6 @@ public class TelephonyNetworkFactory extends NetworkFactory {
 
     private void onReleaseNetworkFor(Message msg) {
         NetworkRequest networkRequest = (NetworkRequest) msg.obj;
-        if (!mNetworkRequests.containsKey(networkRequest)) {
-            return;
-        }
         boolean applied = mNetworkRequests.get(networkRequest)
                 != AccessNetworkConstants.TRANSPORT_TYPE_INVALID;
 

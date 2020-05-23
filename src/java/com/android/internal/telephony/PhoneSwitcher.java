@@ -80,8 +80,9 @@ import java.util.concurrent.CompletableFuture;
  * the active phones.  Note we don't wait for data attach (which may not happen anyway).
  */
 public class PhoneSwitcher extends Handler {
-    protected final static String LOG_TAG = "PhoneSwitcher";
-    protected final static boolean VDBG = false;
+    protected static final String LOG_TAG = "PhoneSwitcher";
+    protected static final boolean VDBG = false;
+
     private static final int DEFAULT_NETWORK_CHANGE_TIMEOUT_MS = 5000;
     private static final int MODEM_COMMAND_RETRY_PERIOD_MS     = 5000;
     // After the emergency call ends, wait for a few seconds to see if we enter ECBM before starting
@@ -676,11 +677,6 @@ public class PhoneSwitcher extends Handler {
 
     private void onRequestNetwork(NetworkRequest networkRequest) {
         final DcRequest dcRequest = new DcRequest(networkRequest, mContext);
-        if (networkRequest.type != NetworkRequest.Type.REQUEST) {
-           log("Skip non REQUEST type request - " + networkRequest);
-           return;
-        }
-
         if (!mPrioritizedDcRequests.contains(dcRequest)) {
             collectRequestNetworkMetrics(networkRequest);
             mPrioritizedDcRequests.add(dcRequest);
@@ -692,8 +688,7 @@ public class PhoneSwitcher extends Handler {
     private void onReleaseNetwork(NetworkRequest networkRequest) {
         final DcRequest dcRequest = new DcRequest(networkRequest, mContext);
 
-        if (mPrioritizedDcRequests.contains(dcRequest) &&
-                mPrioritizedDcRequests.remove(dcRequest)) {
+        if (mPrioritizedDcRequests.remove(dcRequest)) {
             onEvaluate(REQUESTS_CHANGED, "netReleased");
             collectReleaseNetworkMetrics(networkRequest);
         }
@@ -895,6 +890,11 @@ public class PhoneSwitcher extends Handler {
     }
 
     private void switchPhone(int phoneId, boolean active) {
+        if (phoneId < 0 || phoneId >= mNumPhones) {
+            log("switchPhone, phoneId: " + phoneId +
+                ", mNumPhones: " + mNumPhones + ", should never here!");
+            return;
+        }
         PhoneState state = mPhoneStates[phoneId];
         if (state.active == active) return;
         state.active = active;
@@ -1115,6 +1115,11 @@ public class PhoneSwitcher extends Handler {
 
     @VisibleForTesting
     protected boolean isPhoneActive(int phoneId) {
+        if (phoneId < 0 || phoneId >= mNumPhones) {
+            log("isPhoneActive, phoneId: " + phoneId +
+                ", mNumPhones: " + mNumPhones + ", should never here!");
+            return false;
+        }
         return mPhoneStates[phoneId].active;
     }
 

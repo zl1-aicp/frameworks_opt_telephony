@@ -51,7 +51,6 @@ import android.telephony.CellLocation;
 import android.telephony.ClientRequestStats;
 import android.telephony.DataFailCause;
 import android.telephony.ImsiEncryptionInfo;
-import android.telephony.PhoneNumberUtils;
 import android.telephony.PhoneStateListener;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.RadioAccessFamily;
@@ -76,7 +75,6 @@ import com.android.internal.telephony.dataconnection.DataConnectionReasons;
 import com.android.internal.telephony.dataconnection.DataEnabledSettings;
 import com.android.internal.telephony.dataconnection.DcTracker;
 import com.android.internal.telephony.dataconnection.TransportManager;
-import com.android.internal.telephony.EcbmHandler;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
 import com.android.internal.telephony.imsphone.ImsPhoneCall;
 import com.android.internal.telephony.test.SimulatedRadioControl;
@@ -84,7 +82,6 @@ import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 import com.android.internal.telephony.uicc.IccFileHandler;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IsimRecords;
-import com.android.internal.telephony.uicc.SIMRecords;
 import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccCardApplication;
 import com.android.internal.telephony.uicc.UiccController;
@@ -152,8 +149,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public static final String NETWORK_SELECTION_NAME_KEY = "network_selection_name_key";
     // Key used to read and write the saved network selection operator short name
     public static final String NETWORK_SELECTION_SHORT_KEY = "network_selection_short_key";
-    public static final String KEY_DO_NOT_SHOW_LIMITED_SERVICE_ALERT
-            = "key_do_not_show_limited_service_alert";
 
 
     // Key used to read/write "disable data connection on boot" pref (used for testing)
@@ -247,9 +242,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     // Key used to read/write the ID for storing the voice mail
     private static final String VM_ID = "vm_id_key";
 
-    // Key used to read/write if Video Call Forwarding is enabled
-    public static final String CF_VIDEO = "cf_key_video";
-
     // Key used for storing call forwarding status
     public static final String CF_STATUS = "cf_status_key";
     // Key used to read/write the ID for storing the call forwarding status
@@ -300,6 +292,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     private boolean mIsVoiceCapable = true;
     private final AppSmsManager mAppSmsManager;
     private SimActivationTracker mSimActivationTracker;
+    // Keep track of whether or not the phone is in Emergency Callback Mode for Phone and
+    // subclasses
+    protected boolean mIsPhoneInEcmState = false;
     private volatile long mTimeLastEmergencySmsSentMs = EMERGENCY_SMS_NO_TIME_RECORDED;
 
     // Variable to cache the video capability. When RAT changes, we lose this info and are unable
@@ -339,7 +334,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     private static final boolean LCE_PULL_MODE = true;
     private int mLceStatus = RILConstants.LCE_NOT_AVAILABLE;
     protected TelephonyComponentFactory mTelephonyComponentFactory;
-    protected EcbmHandler mEcbmHandler;
 
     //IMS
     /**
@@ -2014,31 +2008,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         Rlog.v(LOG_TAG, "getCallForwardingIndicator: iccForwardingFlag=" + (r != null
                     ? r.getVoiceCallForwardingFlag() : "null") + ", sharedPrefFlag="
                     + getCallForwardingIndicatorFromSharedPref());
-        return ((callForwardingIndicator == IccRecords.CALL_FORWARDING_STATUS_ENABLED) ||
-                getVideoCallForwardingPreference());
-    }
-
-    /**
-     * This method stores the CF_VIDEO flag in preferences
-     * @param enabled
-     */
-    public void setVideoCallForwardingPreference(boolean enabled) {
-        Rlog.d(LOG_TAG, "Set video call forwarding info to preferences enabled = " + enabled
-                + "subId = " + getSubId());
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
-        SharedPreferences.Editor edit = sp.edit();
-        edit.putBoolean(CF_VIDEO + getSubId(), enabled);
-        edit.commit();
-    }
-
-    /**
-     * This method gets Video Call Forwarding enabled/disabled from preferences
-     */
-    public boolean getVideoCallForwardingPreference() {
-        Rlog.d(LOG_TAG, "Get video call forwarding info from preferences");
-
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
-        return sp.getBoolean(CF_VIDEO + getSubId(), false);
+        return (callForwardingIndicator == IccRecords.CALL_FORWARDING_STATUS_ENABLED);
     }
 
     public CarrierSignalAgent getCarrierSignalAgent() {
@@ -2446,8 +2416,18 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return SystemProperties.getBoolean(TelephonyProperties.PROPERTY_INECM_MODE, false);
     }
 
+    /**
+     * @return {@code true} if we are in emergency call back mode. This is a period where the phone
+     * should be using as little power as possible and be ready to receive an incoming call from the
+     * emergency operator.
+     */
     public boolean isInEcm() {
-        return EcbmHandler.getInstance().isInEcm();
+        return mIsPhoneInEcmState;
+    }
+
+    public void setIsInEcm(boolean isInEcm) {
+        setGlobalSystemProperty(TelephonyProperties.PROPERTY_INECM_MODE, String.valueOf(isInEcm));
+        mIsPhoneInEcmState = isInEcm;
     }
 
     @UnsupportedAppUsage
@@ -2652,23 +2632,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public String getCdmaPrlVersion(){
         return null;
-    }
-
-    /**
-     * Initiate to add a participant in an IMS call.
-     * This happens asynchronously, so you cannot assume the audio path is
-     * connected (or a call index has been assigned) until PhoneStateChanged
-     * notification has occurred.
-     *
-     * @exception CallStateException if a new outgoing call is not currently
-     *                possible because no more call slots exist or a call exists
-     *                that is dialing, alerting, ringing, or waiting. Other
-     *                errors are handled asynchronously.
-     */
-    public void addParticipant(String dialString) throws CallStateException {
-        // To be overridden by GsmCdmaPhone and ImsPhone.
-        throw new CallStateException("addParticipant :: No-Op base implementation. "
-                + this);
     }
 
     /**
@@ -3460,10 +3423,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
             //mImsPhone.removeReferences();
             mImsPhone = null;
         }
-        if (mEcbmHandler != null) {
-            mEcbmHandler.updateImsPhone(mImsPhone, mPhoneId);
-        }
-
     }
 
     /**
@@ -4052,10 +4011,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mCi.setSimCardPower(state, null, workSource);
     }
 
-    public SIMRecords getSIMRecords() {
-        return null;
-    }
-
     public void setRadioIndicationUpdateMode(int filters, int mode) {
         if (mDeviceStateMonitor != null) {
             mDeviceStateMonitor.setIndicationUpdateMode(filters, mode);
@@ -4064,17 +4019,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
     public void setCarrierTestOverride(String mccmnc, String imsi, String iccid, String gid1,
             String gid2, String pnn, String spn, String carrierPrivilegeRules, String apn) {
-    }
-
-    @Override
-    public void getCallForwardingOption(int commandInterfaceCFReason,
-            int commandInterfaceServiceClass, Message onComplete) {
-    }
-
-    @Override
-    public void setCallForwardingOption(int commandInterfaceCFReason,
-            int commandInterfaceCFAction, String dialingNumber,
-            int commandInterfaceServiceClass, int timerSeconds, Message onComplete) {
     }
 
     /**
@@ -4295,9 +4239,5 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
             pw.flush();
             pw.println("++++++++++++++++++++++++++++++++");
         }
-    }
-
-    public boolean isEmergencyNumber(String address) {
-        return PhoneNumberUtils.isEmergencyNumber(getSubId(), address);
     }
 }

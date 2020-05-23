@@ -44,7 +44,6 @@ public class SubscriptionControllerMock extends SubscriptionController {
     final AtomicInteger mDefaultVoiceSubId = new AtomicInteger(INVALID_SUBSCRIPTION_ID);
     final ITelephonyRegistry.Stub mTelephonyRegistry;
     final int[][] mSlotIndexToSubId;
-    int mActiveSubInfoCount;
 
     public static SubscriptionController init(Phone phone) {
         throw new RuntimeException("not implemented");
@@ -130,10 +129,7 @@ public class SubscriptionControllerMock extends SubscriptionController {
     }
     @Override
     public int getActiveSubInfoCount(String callingPackage) {
-        return mActiveSubInfoCount;
-    }
-    public void setActiveSubInfoCount(int count) {
-        mActiveSubInfoCount = count;
+        throw new RuntimeException("not implemented");
     }
     @Override
     public int getAllSubInfoCount(String callingPackage) {
